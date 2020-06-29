@@ -18,12 +18,53 @@ var inv = [{
     ]
 }];
 
+var amountStrategies = {
+    tragedy: play => {
+
+        let amount = 40000;
+
+        if (play.audience > 30) {
+            amount += 1000 * (play.audience - 30);
+        }
+        return amount;
+    },
+    comedy: play => {
+
+        let amount = 30000 + 300 * play.audience;
+
+        if (play.audience > 20) {
+            amount += 10000 + 500 * (play.audience - 20);
+        }
+        return amount;
+    }
+};
+
+var creditsStrategies = [
+    invoice => {
+
+        var comedyPlays = invoice.performance
+        .filter(play => play.type === "comedy");
+
+        let comedyCredits = 0;
+
+        if (comedyPlays.length >= 10) {
+            for (i = 9; i < comedyPlays.length; i = i + 10) {
+                comedyCredits += Math.floor(comedyPlays[i].audience / 5);
+            }
+        }
+
+        return comedyCredits;
+    },
+    invoice => invoice.performance
+        .reduce((creditsAcc, play) => creditsAcc + Math.max(play.audience - 30, 0), 0)
+    
+];
 
 function statement(invoice) {
 
     let totalAmount = 0;
     let volumeCredits = 0;
-    let result = `Счет для ${invoice[0].customer}\n`;
+    let result = `Счет для ${invoice.customer}\n`;
 
     const format = new Intl.NumberFormat("ru-RU", {
         style: "currency",
@@ -31,8 +72,8 @@ function statement(invoice) {
         minimumFractionDigits: 2
     }).format;
 
-    for (let perf of invoice[0].performance) {
-        
+    for (let perf of invoice.performance) {
+
         // Вывод строки счета
         thisAmount = calcAmount(perf);
 
@@ -51,82 +92,24 @@ function statement(invoice) {
 }
 
 function calcCredits(invoice) {
-    var volumeCredits = invoice[0].performance.reduce(function(creditsAcc, play) {
-        return creditsAcc + Math.max(play.audience - 30, 0);
-    }, 0);
 
-    var comedyPlays = invoice[0].performance.filter(function(play) {
-        return play.type === "comedy";
-    });
-
-    var comedyCredits = 0;
-    console.log(comedyPlays.length);
-
-    if (comedyPlays.length >= 10) {
-        for (i = 9; i < comedyPlays.length; i = i + 10) {
-            comedyCredits += Math.floor(comedyPlays[i].audience / 5);
-            console.log(comedyCredits); // fix this
-        }
-    }
-
-    return volumeCredits + comedyCredits;
+    return creditsStrategies
+        .reduce((creditAcc, strategy) => creditAcc + strategy(invoice), 0);
 }
 
 function calcTotal(invoice) {
-    var tragedyAmount = invoice[0].performance
-        .filter(play => play.type === "tragedy")
-        .reduce((amountAcc, play) => {
 
-            if (play.audience <= 30)
-                return amountAcc + 40000;
-            else
-                return amountAcc + 40000 + (1000 * (play.audience - 30));
-        }, 0);
+    let total = invoice.performance
+        .reduce((amountAcc, play) => amountAcc + amountStrategies[play.type](play), 0);
 
-    var comedyAmount = invoice[0].performance
-        .filter(play => play.type === "comedy")
-        .reduce((amountAcc, play) => {
-
-            amountAcc += 30000 + (300 * play.audience);
-
-            if (play.audience > 20)
-                amountAcc += (10000 + 500 * (play.audience - 20));
-
-            return amountAcc;
-        }, 0);
-
-    return tragedyAmount + comedyAmount;
+    return total;
 }
 
-function calcAmount(play)
-{
-    let amount = 0;
+function calcAmount(play) {
 
-    switch (play.type) {
+    if (!amountStrategies.hasOwnProperty(play.type))
+        throw new Error('неизвестный тип: ${play.type}');
 
-        case "tragedy":
-
-            amount = 40000;
-
-            if (play.audience > 30) {
-                amount += 1000 * (play.audience - 30); 
-            }
-
-            break;
-
-        case "comedy":
-
-            amount = 30000 + 300 * play.audience;
-
-            if (play.audience > 20) { 
-                amount += 10000 + 500 * (play.audience - 20); 
-            }
-
-            break;
-
-        default:
-            throw new Error('неизвестный тип: ${play.type}');
-    }
-
-    return amount;
+    return amountStrategies[play.type](play);
 }
+inv.forEach(invoice => console.log(statement(invoice)));
