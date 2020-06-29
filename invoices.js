@@ -56,39 +56,21 @@ var creditsStrategies = [
         return comedyCredits;
     },
     invoice => invoice.performance
-        .reduce((creditsAcc, play) => creditsAcc + Math.max(play.audience - 30, 0), 0)
-    
+        .reduce((creditsAcc, play) => creditsAcc + Math.max(play.audience - 30, 0), 0)   
 ];
 
 function statement(invoice) {
 
-    let totalAmount = 0;
-    let volumeCredits = 0;
-    let result = `Счет для ${invoice.customer}\n`;
+    let credits = calcCredits(invoice);
+    let total = calcTotal(invoice);
 
-    const format = new Intl.NumberFormat("ru-RU", {
-        style: "currency",
-        currency: "RUB",
-        minimumFractionDigits: 2
-    }).format;
+    let plays = invoice.performance.map(play => ({
+        playId: play.playId,
+        audience: play.audience,
+        amount: calcAmount(play)
+    }));
 
-    for (let perf of invoice.performance) {
-
-        // Вывод строки счета
-        thisAmount = calcAmount(perf);
-
-        result += ` ${perf.playId}: ${format(thisAmount / 100)}`;
-        result += ` (${perf.audience} мест)\n`;
-    }
-
-    // Добавление бонусов
-    volumeCredits = calcCredits(invoice);
-    totalAmount = calcTotal(invoice);
-
-    result += `Итого с вас ${(format(totalAmount/100))}\n`;
-    result += `Вы заработали ${volumeCredits} бонусов\n`;
-
-    return result;
+    return makeInvoice(invoice.customer, plays, total, credits);
 }
 
 function calcCredits(invoice) {
@@ -112,4 +94,26 @@ function calcAmount(play) {
 
     return amountStrategies[play.type](play);
 }
+
+function makeInvoice(customer, plays, total, credits)
+{
+    let result = `Счет для ${customer}\n`;
+
+    plays.reduce((acc, play) => {
+        result += ` ${play.playId}: ${formatPrice(play.amount / 100)}`;
+        result += ` (${play.audience} мест)\n`;
+    }, result);
+
+    result += `Итого с вас ${(formatPrice(total / 100))}\n`;
+    result += `Вы заработали ${credits} бонусов\n`;
+
+    return result;
+}
+
+const formatPrice = new Intl.NumberFormat("ru-RU", {
+        style: "currency",
+        currency: "RUB",
+        minimumFractionDigits: 2
+}).format;
+
 inv.forEach(invoice => console.log(statement(invoice)));
