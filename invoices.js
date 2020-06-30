@@ -1,3 +1,6 @@
+/**
+ * Входные данные о представлениях.
+ */
 var inv = [{
     "customer": "MDT",
     "performance": [{
@@ -18,6 +21,9 @@ var inv = [{
     ]
 }];
 
+/**
+ * Объект с функциями для расчета цены на представления разных типов.
+ */
 var amountStrategies = {
     tragedy: play => {
 
@@ -39,6 +45,9 @@ var amountStrategies = {
     }
 };
 
+/**
+ * Массив с функциями для расчета бонусов разных типов.
+ */
 var creditsStrategies = [
     invoice => {
 
@@ -59,6 +68,12 @@ var creditsStrategies = [
         .reduce((creditsAcc, play) => creditsAcc + Math.max(play.audience - 30, 0), 0)   
 ];
 
+/**
+ * Расчитывает цены представлений, бонусы и стоимость и создает строку счёта.
+ *
+ * @param  {Object} invoice - данные о представлениях.
+ * @return {string} Строка со счётом.
+ */
 function statement(invoice) {
 
     let credits = calcCredits(invoice);
@@ -73,28 +88,55 @@ function statement(invoice) {
     return makeInvoice(invoice.customer, plays, total, credits);
 }
 
+/**
+ * Расчитывает бонусы по счёту.
+ *
+ * @param  {Object} invoice - данные о представлениях.
+ * @return {number} Сумма всех типов бонусов.
+ */
 function calcCredits(invoice) {
 
     return creditsStrategies
         .reduce((creditAcc, strategy) => creditAcc + strategy(invoice), 0);
 }
 
+/**
+ * Расчитывает стоимость представлений.
+ *
+ * @param  {Object} invoice - данные о представлениях.
+ * @return {number} Стоимость представлений.
+ */
 function calcTotal(invoice) {
 
     let total = invoice.performance
-        .reduce((amountAcc, play) => amountAcc + amountStrategies[play.type](play), 0);
+        .reduce((amountAcc, play) => amountAcc + calcAmount(play), 0);
 
     return total;
 }
 
+/**
+ * Расчитывает цену представления.
+ *
+ * @param  {Object} play - данные о представлении.
+ * @return {number} Цена представления.
+ */
 function calcAmount(play) {
 
     if (!amountStrategies.hasOwnProperty(play.type))
-        throw new Error('неизвестный тип: ${play.type}');
+        throw new Error(`неизвестный тип: ${play.type}`);
 
     return amountStrategies[play.type](play);
 }
 
+/**
+ * Создает строку счёта.
+ *
+ * @param  {string} customer - клиент.
+ * @param  {Object} plays - данные о представлениях, включающие цену.
+ * @param  {number} total - стоимость представлений.
+ * @param  {number} credits - начисленные бонусы.
+ * @return {number} Строка со счётом.
+ */
 function makeInvoice(customer, plays, total, credits)
 {
     let result = `Счет для ${customer}\n`;
@@ -110,10 +152,17 @@ function makeInvoice(customer, plays, total, credits)
     return result;
 }
 
+/**
+ * Форматирует цену.
+ *
+ * @param  {number} число.
+ * @return {string} отформатированная строка.
+ */
 const formatPrice = new Intl.NumberFormat("ru-RU", {
         style: "currency",
         currency: "RUB",
         minimumFractionDigits: 2
 }).format;
 
+// Вывод счёта
 inv.forEach(invoice => console.log(statement(invoice)));
